@@ -33,6 +33,7 @@ import hubo_ach as ha
 import ach
 import sys
 import time
+import math
 from ctypes import *
 
 # Open Hubo-Ach feed-forward and feed-back (reference and state) channels
@@ -47,21 +48,29 @@ state = ha.HUBO_STATE()
 # feed-back will now be refered to as "ref"
 ref = ha.HUBO_REF()
 
-# Get the current feed-forward (state) 
-[statuss, framesizes] = s.get(state, wait=False, last=False)
-
-#Set Left Elbow Bend (LEB) and Right Shoulder Pitch (RSP) to  -0.2 rad and 0.1 rad respectively
-ref.ref[ha.LEB] = -0.2
-ref.ref[ha.RSP] = 0.1
-
-# Print out the actual position of the LEB
-print "Joint = ", state.joint[ha.LEB].pos
-
-# Print out the Left foot torque in X
-print "Mx = ", state.ft[ha.HUBO_FT_L_FOOT].m_x
-
-# Write to the feed-forward channel
+#Set Left arm to starting position
+ref.ref[ha.LSP] = -1*long(math.pi/2)
+ref.ref[ha.LSR] = 1.25
+ref.ref[ha.LEB] = -.75
 r.put(ref)
+
+armstate = 0 #arm raised, left most extent of waving, state 1 = right most extent
+
+while True:
+	# Get the current feed-forward (state) 
+	[statuss, framesizes] = s.get(state, wait=False, last=False)
+
+	if 0==armstate:
+		armstate = 1
+		ref.ref[ha.LEB] = -2.25
+		time.sleep(3)
+		r.put(ref)
+
+	if 1==armstate:
+		armstate = 0	
+		ref.ref[ha.LEB] = -.75
+		time.sleep(3)
+		r.put(ref)
 
 # Close the connection to the channels
 r.close()
