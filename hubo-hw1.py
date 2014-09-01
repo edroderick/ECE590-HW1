@@ -56,36 +56,27 @@ ref.ref[ha.LSR] = 1.25
 ref.ref[ha.LEB] = -.75
 r.put(ref)
 
-#while (abs(state.joint[ha.LSP].pos - LSPstart) > thold and abs(state.joint[ha.LSR].pos-1.25) > thold and abs(state.joint[ha.LEB].pos+.75) > thold):
-while abs(state.joint[ha.LSR].pos-1.25) > thold:
-	[statuss, framesizes] = s.get(state, wait=False, last=False)
-	#print 'LSP = ' , state.joint[ha.LSP].pos
-	print 'LSR = ' , state.joint[ha.LSR].pos
-	#print 'LEB = ' , state.joint[ha.LEB].pos
-	#print 'LEBV = ', state.joint[ha.LEB].vel
-
+time.sleep(2)
 armstate = 0 #left arm raised, left most extent of waving, state 1 = right most extent
-print "state set to 0"
 
-#while True:
+
+while True:
 	# Get the current feed-forward (state) 
-#	[statuss, framesizes] = s.get(state, wait=False, last=False)
+	[statuss, framesizes] = s.get(state, wait=False, last=False)
 	
+	if 0==armstate:
+		tstart = time.clock()	
+		ref.ref[ha.LEB] = -2.85		
+		r.put(ref)
+		armstate = 1
+		time.sleep(.5-(time.clock()-tstart))
 
-#	if 0==armstate:
-#		print ('start time %d' % time.time())	
-#		ref.ref[ha.LEB] = -2.25		
-#		r.put(ref)
-#		print "Joint after change: " , state.joint[ha.LEB].pos
-#		time.sleep(.5)
-#		armstate = 1
-
-#	if 1==armstate:
-#		print ('arrived time %d' % time.time())
-#		ref.ref[ha.LEB] = -.75
-#		r.put(ref)
-#		time.sleep(.5)
-#		armstate = 0	
+	if 1==armstate:
+		tstart = time.clock()
+		ref.ref[ha.LEB] = -.25
+		r.put(ref)
+		armstate = 0
+		time.sleep(.5-(time.clock()-tstart))	
 
 # Close the connection to the channels
 r.close()
