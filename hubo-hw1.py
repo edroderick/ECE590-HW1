@@ -42,7 +42,6 @@ r = ach.Channel(ha.HUBO_CHAN_REF_NAME)
 s.flush()
 r.flush()
 LSPstart = -1 * math.pi/2
-thold = .1
 
 # feed-forward will now be refered to as "state"
 state = ha.HUBO_STATE()
@@ -56,7 +55,7 @@ ref.ref[ha.LSR] = 1.25
 ref.ref[ha.LEB] = -.75
 r.put(ref)
 
-time.sleep(2)
+time.sleep(2) #wait for arm to move to starting position
 armstate = 0 #left arm raised, left most extent of waving, state 1 = right most extent
 
 
