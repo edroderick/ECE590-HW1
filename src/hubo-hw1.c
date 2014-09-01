@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
 			H_ref.ref[LEB] = -2.85;
 			ach_put( &chan_hubo_ref, &H_ref, sizeof(H_ref));
 			armstate = 1;
-			usleep(500000-clock()-tstart);
+			usleep(500000-(clock()-tstart));
 		}
 
 		if(1==armstate){
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
 			H_ref.ref[LEB]=-.25;
 			ach_put( &chan_hubo_ref, &H_ref, sizeof(H_ref));
 			armstate = 0;
-			usleep(500000-clock()-tstart);
+			usleep(500000-(clock()-tstart));
 		}
 	}
 }
