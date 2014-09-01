@@ -41,6 +41,8 @@ s = ach.Channel(ha.HUBO_CHAN_STATE_NAME)
 r = ach.Channel(ha.HUBO_CHAN_REF_NAME)
 s.flush()
 r.flush()
+LSPstart = -1 * math.pi/2
+thold = .1
 
 # feed-forward will now be refered to as "state"
 state = ha.HUBO_STATE()
@@ -49,30 +51,42 @@ state = ha.HUBO_STATE()
 ref = ha.HUBO_REF()
 
 #Set Left arm to starting position
-ref.ref[ha.LSP] = -1*long(math.pi/2)
+ref.ref[ha.LSP] = LSPstart
 ref.ref[ha.LSR] = 1.25
 ref.ref[ha.LEB] = -.75
 r.put(ref)
 
-armstate = 0 #arm raised, left most extent of waving, state 1 = right most extent
-
-while True:
-	# Get the current feed-forward (state) 
+#while (abs(state.joint[ha.LSP].pos - LSPstart) > thold and abs(state.joint[ha.LSR].pos-1.25) > thold and abs(state.joint[ha.LEB].pos+.75) > thold):
+while abs(state.joint[ha.LSR].pos-1.25) > thold:
 	[statuss, framesizes] = s.get(state, wait=False, last=False)
+	#print 'LSP = ' , state.joint[ha.LSP].pos
+	print 'LSR = ' , state.joint[ha.LSR].pos
+	#print 'LEB = ' , state.joint[ha.LEB].pos
+	#print 'LEBV = ', state.joint[ha.LEB].vel
 
-	if 0==armstate:
-		armstate = 1
-		ref.ref[ha.LEB] = -2.25
-		time.sleep(3)
-		r.put(ref)
+armstate = 0 #left arm raised, left most extent of waving, state 1 = right most extent
+print "state set to 0"
 
-	if 1==armstate:
-		armstate = 0	
-		ref.ref[ha.LEB] = -.75
-		time.sleep(3)
-		r.put(ref)
+#while True:
+	# Get the current feed-forward (state) 
+#	[statuss, framesizes] = s.get(state, wait=False, last=False)
+	
+
+#	if 0==armstate:
+#		print ('start time %d' % time.time())	
+#		ref.ref[ha.LEB] = -2.25		
+#		r.put(ref)
+#		print "Joint after change: " , state.joint[ha.LEB].pos
+#		time.sleep(.5)
+#		armstate = 1
+
+#	if 1==armstate:
+#		print ('arrived time %d' % time.time())
+#		ref.ref[ha.LEB] = -.75
+#		r.put(ref)
+#		time.sleep(.5)
+#		armstate = 0	
 
 # Close the connection to the channels
 r.close()
 s.close()
-
