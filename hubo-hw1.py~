@@ -27,7 +27,7 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # */
 
-#increased maxtorque of left ankle roll, left knee pitch left hip roll to 100
+
 
 import hubo_ach as ha
 import ach
@@ -41,24 +41,7 @@ s = ach.Channel(ha.HUBO_CHAN_STATE_NAME)
 r = ach.Channel(ha.HUBO_CHAN_REF_NAME)
 s.flush()
 r.flush()
-
-#Set constants
-maxRAR = (math.pi/2)-1.423
-maxRHR = -(math.pi/2)+1.423
-maxLAR = (math.pi/2)-1.423
-maxLHR = -(math.pi/2)+1.423
-maxRKN = 2.4
-maxRHP = -2.4/2
-maxRAP = -2.4/2
-steps = 5
-
-def simSleep(tsim, Ts, state):
-	time = tsim
-	t = tsim + Ts	
-	while(time < t):		
-		[statuss, framesizes] = s.get(state, wait=False, last=False)
-		time = state.time
-
+LSPstart = -1 * math.pi/2
 
 # feed-forward will now be refered to as "state"
 state = ha.HUBO_STATE()
@@ -66,56 +49,33 @@ state = ha.HUBO_STATE()
 # feed-back will now be refered to as "ref"
 ref = ha.HUBO_REF()
 
-#Move CG over left foot 
-for x in range(0,steps):
-	[statuss, framesizes] = s.get(state, wait=False, last=False)
-	ref.ref[ha.RAR] = state.joint[ha.RAR].pos + maxRAR/steps
-	ref.ref[ha.RHR] = state.joint[ha.RHR].pos - maxRAR/steps
-	ref.ref[ha.LAR] = state.joint[ha.LAR].pos + maxRAR/steps
-	ref.ref[ha.LHR] = state.joint[ha.LHR].pos - maxRAR/steps
-	r.put(ref)
-	simSleep(state.time, .5, state)
+#Set Left arm to starting position
+ref.ref[ha.LSP] = LSPstart
+ref.ref[ha.LSR] = 1.25
+ref.ref[ha.LEB] = -.75
+r.put(ref)
 
-#raise right leg
-for x in range(0,steps):
-	[statuss, framesizes] = s.get(state, wait=False, last=False)
-	print state.joint[ha.LHR].pos
-	ref.ref[ha.RKN] = state.joint[ha.RKN].pos + maxRKN/steps
-	ref.ref[ha.RHP] = state.joint[ha.RHP].pos + maxRHP/steps
-	ref.ref[ha.RAP] = state.joint[ha.RAP].pos + maxRAP/steps
-	r.put(ref)
-	simSleep(state.time, .5, state)
+time.sleep(2) #wait for arm to move to starting position
+armstate = 0 #left arm raised, left most extent of waving, state 1 = right most extent
 
-legstate = 0 #centered over left foot, right leg raised, standing up straight
 
 while True:
+	# Get the current feed-forward (state) 
 	[statuss, framesizes] = s.get(state, wait=False, last=False)
-
-	if 0==legstate:
-		for x in range(0,steps):
-			tstart = time.time()
-			ref.ref[ha.LAR] = state.joint[ha.LAR].pos + .075/steps
-			ref.ref[ha.LHR] = state.joint[ha.LHR].pos - .075/steps
-			ref.ref[ha.LKN] = state.joint[ha.LHR].pos + 1.68/steps
-			ref.ref[ha.LHP] = state.joint[ha.LHR].pos - .84168/steps
-			ref.ref[ha.LAP] =  state.joint[ha.LHR].pos - .84168/steps
-			r.put(ref)	
-			simSleep(state.time, (.5-(tstart-time.time()))/steps, state)
-		legstate = 1
 	
+	if 0==armstate:
+		tstart = time.clock()	
+		ref.ref[ha.LEB] = -2.85		
+		r.put(ref)
+		armstate = 1
+		time.sleep(.5-(time.clock()-tstart))
 
-	if 1==legstate:
-		for x in range(0,steps):
-			tstart = time.time()
-			ref.ref[ha.LAR] = state.joint[ha.LAR].pos - .075/steps
-			ref.ref[ha.LHR] = state.joint[ha.LHR].pos + .075/steps
-			ref.ref[ha.LKN] = state.joint[ha.LHR].pos - 1.68/steps
-			ref.ref[ha.LHP] = state.joint[ha.LHR].pos + .84168/steps
-			ref.ref[ha.LAP] = state.joint[ha.LHR].pos + .84168/steps
-			r.put(ref)
-			simSleep(state.time, (.5-(tstart-time.time()))/steps, state)	
-		legstate = 0	
-
+	if 1==armstate:
+		tstart = time.clock()
+		ref.ref[ha.LEB] = -.25
+		r.put(ref)
+		armstate = 0
+		time.sleep(.5-(time.clock()-tstart))	
 
 # Close the connection to the channels
 r.close()

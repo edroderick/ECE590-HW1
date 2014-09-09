@@ -111,7 +111,7 @@ while True:
 			ref.ref[ha.LHR] = state.joint[ha.LHR].pos + .075/steps
 			ref.ref[ha.LKN] = state.joint[ha.LHR].pos - 1.68/steps
 			ref.ref[ha.LHP] = state.joint[ha.LHR].pos + .84168/steps
-			ref.ref[ha.LAP] = state.joint[ha.LHR].pos + .84168/steps
+			ref.ref[ha.LAP] = state.joint[ha.LHR].pos + .84168/2)/steps
 			r.put(ref)
 			simSleep(state.time, (.5-(tstart-time.time()))/steps, state)	
 		legstate = 0	
