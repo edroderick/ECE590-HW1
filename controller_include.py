@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # /* -*-  indent-tabs-mode:t; tab-width: 8; c-basic-offset: 8  -*- */
 # /*
-# Copyright (c) 2013, Daniel M. Lofaro
+# Copyright (c) 2014, Daniel M. Lofaro
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
 #     * Neither the name of the author nor the names of its contributors may
 #       be used to endorse or promote products derived from this software
 #       without specific prior written permission.
-# 
+#
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -27,38 +27,25 @@
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # */
 
+# from ctypes import *
+from ctypes import Structure,c_uint16,c_double,c_ubyte,c_uint32,c_int16
+# import ach
+# import sys
+
+DEF_1 = 0
+DEF_2 = 1
+DEF_3 = 2
 
 
-import hubo_ach as ha
-import ach
-import sys
-import time
-from ctypes import *
+CONTROLLER_REF_NAME = 'controller-ref-chan'
 
-# Open Hubo-Ach feed-forward and feed-back (reference and state) channels
-s = ach.Channel(ha.HUBO_CHAN_STATE_NAME)
-r = ach.Channel(ha.HUBO_CHAN_REF_NAME)
-s.flush()
-r.flush()
-
-# feed-forward will now be refered to as "state"
-state = ha.HUBO_STATE()
-
-# feed-back will now be refered to as "ref"
-ref = ha.HUBO_REF()
-
-# Get the current feed-forward (state) 
-[statuss, framesizes] = s.get(state, wait=False, last=False)
-
-#Set Left Elbow Bend (LEB) and Right Shoulder Pitch (RSP) to  -0.2 rad and 0.1 rad respectively
-ref.ref[ha.LSP] = 0.0
-ref.ref[ha.LSR] = 0.0
-ref.ref[ha.LEB] = 0.0
-
-# Write to the feed-forward channel
-r.put(ref)
-
-# Close the connection to the channels
-r.close()
-s.close()
+class CONTROLLER_REF(Structure):
+    _pack_ = 1
+    _fields_ = [("mot1",    c_double),
+                ("mot2",    c_double)]
+#class HUBO_REF(Structure):
+#    _pack_ = 1
+#    _fields_ = [("ref",    c_double*HUBO_JOINT_COUNT),
+#                ("mode",   c_int16*HUBO_JOINT_COUNT),
+#                ("comply", c_ubyte*HUBO_JOINT_COUNT)]
 
