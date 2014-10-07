@@ -135,9 +135,6 @@ for x in range(1,steps*2):
 ref.ref[ha.RKN] = 1.0
 ref.ref[ha.RHP] = -.5
 ref.ref[ha.RAP] = -.5
-#ref.ref[ha.LKN] = state.joint[ha.LKN].pos - .25
-#ref.ref[ha.LHP] = state.joint[ha.LHP].pos + .25
-#ref.ref[ha.LAP] = state.joint[ha.LAP].pos + (-.5 - state.joint[ha.RAP].pos)
 r.put(ref)
 
 
@@ -151,15 +148,13 @@ r.put(ref)
 #move cg to right
 for x in range(0,steps):
 	[statuss, framesizes] = s.get(state, wait=False, last=False)
-	ref.ref[ha.RAR] = state.joint[ha.RAR].pos - (.02+maxRAR)/(steps)
-	ref.ref[ha.RHR] = state.joint[ha.RHR].pos - (.02+maxRHR)/(steps)
-	ref.ref[ha.LAR] = state.joint[ha.LAR].pos - (.02+maxLAR)/(steps)
-	ref.ref[ha.LHR] = state.joint[ha.LHR].pos - (.02+maxLHR)/(steps)
+	ref.ref[ha.RAR] = state.joint[ha.RAR].pos - (.01+maxRAR)/(steps)
+	ref.ref[ha.RHR] = state.joint[ha.RHR].pos - (.01+maxRHR)/(steps)
+	ref.ref[ha.LAR] = state.joint[ha.LAR].pos - (.01+maxLAR)/(steps)
+	ref.ref[ha.LHR] = state.joint[ha.LHR].pos - (.01+maxLHR)/(steps)
 	r.put(ref)
 	simSleep(state.time, 1, state)	
 
-
-print 'starting lift'
 for x in range(0, 2*steps):
 	[statuss, framesizes] = s.get(state, wait=False, last=False)
 	ref.ref[ha.LKN] = state.joint[ha.LKN].pos + 1.0/(2*steps)
@@ -175,21 +170,13 @@ for x in range(1,(steps+1)):
 	r.put(ref)
 	simSleep(state.time,.5,state)
 
-#put foot down
-ref.ref[ha.RKN] = 1.3
-ref.ref[ha.RHP] = -.65
-ref.ref[ha.RAP] = -.65
-r.put(ref)
-simSleep(state.time,.5,state)
-'''
 #move cg to center from left
 for x in range(1,steps*2):
 	[statuss, framesizes] = s.get(state, wait=False, last=False)
-	print 'looping centering cg'
-	ref.ref[ha.RKN] = state.joint[ha.RKN].pos - .5/(2*steps)
-	ref.ref[ha.RHP] = state.joint[ha.RHP].pos - (-.5/(2*steps))
-	ref.ref[ha.LHP] = state.joint[ha.LHP].pos - (-.4/(2*steps))
-	ref.ref[ha.LAP] = state.joint[ha.LAP].pos - .4/(2*steps)
+	ref.ref[ha.RKN] = state.joint[ha.RKN].pos - .35/(2*steps)
+	ref.ref[ha.RHP] = state.joint[ha.RHP].pos - (-.35/(2*steps))
+	ref.ref[ha.LHP] = state.joint[ha.LHP].pos - (-.25/(2*steps))
+	ref.ref[ha.LAP] = state.joint[ha.LAP].pos - .25/(2*steps)
 	ref.ref[ha.LAR] = state.joint[ha.LAR].pos + maxLAR/(2*steps)
 	ref.ref[ha.LHR] = state.joint[ha.LHR].pos + maxLHR/(2*steps)
 	ref.ref[ha.RAR] = state.joint[ha.RAR].pos + maxRAR/(2*steps)
@@ -197,27 +184,15 @@ for x in range(1,steps*2):
 	r.put(ref)
 	simSleep(state.time, .5, state)
 
-[statuss, framesizes] = s.get(state, wait=False, last=False)
-simSleep(state.time,5,state)
-
-[statuss, framesizes] = s.get(state, wait=False, last=False)
-ref.ref[ha.LKN] = 1.0
-ref.ref[ha.LHP] = -.5
-ref.ref[ha.LAP] = -.5
-r.put(ref)
-print 'after reference leg set'
-
-#Zero incase of drift
+#zeroing to compensate for potential drift
 ref.ref[ha.RAR] = 0
 ref.ref[ha.RHR] = 0
 ref.ref[ha.LAR] = 0
 ref.ref[ha.LHR] = 0
 r.put(ref)
-print 'after zeroeing'
 
 #move cg to right
 for x in range(0,steps):
-	print 'looping cg to right'
 	[statuss, framesizes] = s.get(state, wait=False, last=False)
 	ref.ref[ha.RAR] = state.joint[ha.RAR].pos + (.01+maxRAR)/(steps)
 	ref.ref[ha.RHR] = state.joint[ha.RHR].pos + (.01+maxRHR)/(steps)
@@ -225,7 +200,22 @@ for x in range(0,steps):
 	ref.ref[ha.LHR] = state.joint[ha.LHR].pos + (.01+maxLHR)/(steps)
 	r.put(ref)
 	simSleep(state.time, 1, state)	
-'''
+
+for x in range(0, 2*steps):
+	[statuss, framesizes] = s.get(state, wait=False, last=False)
+	ref.ref[ha.RKN] = state.joint[ha.RKN].pos + 1.0/(2*steps)
+	ref.ref[ha.RHP] = state.joint[ha.RHP].pos - .5/(2*steps)
+	ref.ref[ha.RAP] = state.joint[ha.RAP].pos - .5/(2*steps)
+	r.put(ref)
+	simSleep(state.time, .5, state)
+
+for x in range(1,(steps+1)):
+	[statuss, framesizes] = s.get(state, wait=False, last=False)
+	ref.ref[ha.RKN] = state.joint[ha.RKN].pos - 1.0/steps
+	ref.ref[ha.RAP] = state.joint[ha.RAP].pos + 1.0/steps
+	r.put(ref)
+	simSleep(state.time,.5,state)
+
 # Close the connection to the channels
 r.close()
 s.close()
