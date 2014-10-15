@@ -77,7 +77,7 @@ while (True):
 		controller.mot2 = 1
 		c.put(controller)
 	if inputKey == curses.KEY_DOWN:
-		controller.mot1 = 0
-		controller.mot2 = 0
+		controller.mot1 = -1
+		controller.mot2 = -1
 		c.put(controller)
 
