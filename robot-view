@@ -36,11 +36,12 @@ rm ~/.gazebo/models/d_diff_drive_robot
 ln -s $ROBOT_PATH_MAIN ~/.gazebo/models/d_diff_drive_robot
 
 
+ROBOT_VIEW_VID_CHAN_L='robot-vid-chan-l'
+ROBOT_VIEW_VID_CHAN_R='robot-vid-chan-r'
 ROBOT_VIEW_VID_CHAN='robot-vid-chan'
 ROBOT_TIME_CHAN='robot-time'
 ROBOT_DIFF_DRIVE_CHAN='robot-diff-drive'
 ROBOT_VIEW_CLIENT_FILE='robot-view-client.py'
-ROBOT_DTHETA='dtheta-chan'
 ROBOT_REF_CHAN='controller-ref-chan'
 
 ROBOT_REMOTE_ADDRESS='0.0.0.0'
@@ -49,6 +50,9 @@ FLAG_VIEW_CLIENT=1 #Default client
 FLAG_VIEW_SERVER=0
 FLAG_REMOTE=0
 FLAG_NOCONSOLE=0
+
+FLAG_QUESTION=0
+
 
 trim()
 {
@@ -60,9 +64,10 @@ trim()
 MakeAch()
 {
 	ach -1 -C $ROBOT_VIEW_VID_CHAN -m 30 -n 3000000
+	ach -1 -C $ROBOT_VIEW_VID_CHAN_L -m 30 -n 3000000
+	ach -1 -C $ROBOT_VIEW_VID_CHAN_R -m 30 -n 3000000
 	ach -1 -C $ROBOT_DIFF_DRIVE_CHAN -m 30 -n 30000
 	ach -1 -C $ROBOT_TIME_CHAN -m 30 -n 30000
-	ach -1 -C $ROBOT_DTHETA -m 30 -n 30000
 	ach -1 -C $ROBOT_REF_CHAN -m 30 -n 30000
         sudo chmod 777 /dev/shm/achshm-*
 }
@@ -108,7 +113,18 @@ RunViewClient()
 RunViewServer()
 {
 
-    gazebo model_diff_drive.world &
+   if [[ $FLAG_QUESTION -eq 1 ]]
+   then
+     gazebo MonCam.world &
+   elif [[ $FLAG_QUESTION -eq 2 ]]
+   then
+     gazebo StereoCam.world &
+   elif [[ $FLAG_QUESTION -eq 3 ]]
+   then
+     gazebo Follow.world &
+   else
+     gazebo model_diff_drive.world &
+   fi
     ./build/video_listener &
 
 #   cd /etc/hubo-ach
@@ -210,6 +226,10 @@ ShowUsage()
 	echo 'remove        : Removes hubo-view'
 	echo 'kill          : Kills and removes hubo-view and ach channels'
 	echo 'make          : makes ach channels'
+        echo '---- post commands (cmd) ---- '
+        echo 'qMonCam       : Load using question MonCam (Monocular Camera)'
+        echo 'qStereoCam    : Load using question StereoCam (Stereo Camera)'
+        echo 'qFollow       : Load using question 3 world'
 	echo
 }
 
@@ -236,6 +256,18 @@ do
           ROBOT_REMOTE_ADDRESS=${ROBOT_TEMP[$(($ROBOT_I+1))]}
 	  echo "Remote address set: "$ROBOT_REMOTE_ADDRESS
       ;;
+     'qMonCam')
+        FLAG_QUESTION=1
+        echo "Mode set to question "$FLAG_QUESTION
+     ;;
+     'qStereoCam')
+        FLAG_QUESTION=2
+        echo "Mode set to question "$FLAG_QUESTION
+     ;;
+     'qFollow')
+        FLAG_QUESTION=3
+        echo "Mode set to question "$FLAG_QUESTION
+     ;;
     esac
     ROBOT_I=$(($ROBOT_I+1))
 
