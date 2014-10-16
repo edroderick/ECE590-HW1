@@ -47,16 +47,11 @@ with open("hw7-ik.txt", "r") as coords:
 			x = float(line.rstrip('\n').rsplit(" ", 3)[0])
 			y = float(line.rstrip('\n').rsplit(" ", 3)[1])
 			z = float(line.rstrip('\n').rsplit(" ", 3)[2])
-			print x, y, z
 			coordinates.x = x
 			coordinates.y = y
 			coordinates.z = z
-			k.put(coordinates)
+			k.put(coordinates)		
+			print x, y, z
+			time.sleep(3)
 		coords.seek(0)
-		print i
-		simtime = tim.sim[0]
-		timeSleep = simtime + 3
-		while(simtime < timeSleep):
-			[status, framesize] = t.get(tim, wait=False, last=True)
-			simtime = tim.sim[0]
 	coords.close()

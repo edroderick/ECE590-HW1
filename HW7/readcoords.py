@@ -52,11 +52,6 @@ with open("hw7-ik.txt", "r") as coords:
 			coordinates.z = z
 			k.put(coordinates)		
 			print x, y, z
+			time.sleep(3)
 		coords.seek(0)
-		print i
-		simtime = tim.sim[0]
-		timeSleep = simtime + 3
-		while(simtime < timeSleep):
-			[status, framesize] = t.get(tim, wait=False, last=True)
-			simtime = tim.sim[0]
 	coords.close()
