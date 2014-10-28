@@ -30,8 +30,6 @@ def movePacket(velocity, ID): #input ranges from +1 to -1, +forward/CW; -reverse
 	packet = direction << 10
 	packet |= magnatude
 		
-	
-	
 	byte1 = packet&0xFF00
 	byte1 = byte1>>8	
 	byte2 = packet&0xFF

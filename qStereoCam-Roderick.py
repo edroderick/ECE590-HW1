@@ -177,26 +177,34 @@ while True:
 	cxR = -1
 	cyR = -1
 
-    #calculate distance from each camera axis to determine disparity between cams
-    xL = cxL - width/2
-    xR = cxR - width/2
-    disparity_pixels = xL - xR
+    #ignore values when no color seen. Often occuring when camera reads blank for a frame and
+    #causes errors in distance calc. When both return blank it causes a divide by zero error.
+    #to my best estimation this is an issue with my laptop not being able to process the images
+    #fast enough. Following if statement ignores the false data.
+    if (not cxL == -1) and (not cxR == -1):
+        #calculate distance from each camera axis to determine disparity between cams
+        xL = cxL - width/2
+        xR = cxR - width/2
+        disparity_pixels = xL - xR
 
-    #convert disparity in pixels to meters
-    disparity = disparity_pixels * .00028
+        #convert disparity in pixels to meters
+        disparity = disparity_pixels * .00028
 
-    #Using simplified stereo vision model found at http://www.techbriefs.com/component/content/article/23-ntb/features/feature-articles/14925
-    distance = focal_length*(baseline/disparity)
-  
-    print "distance = " , distance , " meters"
+        #Using simplified stereo vision model found at http://www.techbriefs.com/component/content/article/23-ntb/features/feature-articles/14925
+        distance = focal_length*(baseline/disparity)
+ 
+        print "distance = " , distance , " meters"
 
     # Sleeps
+
+    time.sleep(.1)
+    '''
     simtime = tim.sim[0]
-    timeSleep = simtime + .065
+    timeSleep = simtime + .1
     while(simtime < timeSleep):
         [status, framesize] = t.get(tim, wait=False, last=True)
         simtime = tim.sim[0]
-
+    '''
 #-----------------------------------------------------
 #-----------------------------------------------------
 #-----------------------------------------------------

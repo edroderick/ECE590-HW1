@@ -68,24 +68,20 @@ while (True):
 		controller.mot1 = .325
 		controller.mot2 = 1
 		c.put(controller)
-	if inputKey == curses.KEY_LEFT:
+	elif inputKey == curses.KEY_LEFT:
 		controller.mot1 = 1
 		controller.mot2 = .325
 		c.put(controller)
-	if inputKey == curses.KEY_UP:
-		controller.mot1 = .5
-		controller.mot2 = .5
+	elif inputKey == curses.KEY_UP:
+		controller.mot1 = 1
+		controller.mot2 = 1
 		c.put(controller)
-	if inputKey == curses.KEY_DOWN:
-		controller.mot1 = -.5
-		controller.mot2 = -.5
+	elif inputKey == curses.KEY_DOWN:
+		controller.mot1 = -1
+		controller.mot2 = -1
 		c.put(controller)
-
-        if inputKey == ord('s'):
+        else 
 		controller.mot1 = 0
 		controller.mot2 = 0
 		c.put(controller)
-
-	time.sleep(.25)
-
 

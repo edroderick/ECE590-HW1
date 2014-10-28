@@ -95,21 +95,16 @@ while True:
     # Main Loop
     # Def:
     # tim.sim[0] = Sim Time
-    # TURNING FULL SPEED CLOCKWISE
-
-    # Sleeps
-    timeSleep = tim.sim[0] + .05
-    while(tim.sim[0] < timeSleep):
-        [status, framesize] = t.get(tim, wait=False, last=True)
 
     [statuss, framesizes] = c.get(controller, wait=True, last=True)
     buff = dyn.movePacket(controller.mot1,0)
     ref = ser.serial_sim(r,ref,buff)
     buff = dyn.movePacket(controller.mot2,1)
     ref = ser.serial_sim(r,ref,buff)    
-#    print controller.mot1
-#    print controller.mot2
+    print controller.mot1
+    print controller.mot2
     
+    time.sleep(.1)
 
 #-----------------------------------------------------
 #--------[ Do not edit below ]------------------------
