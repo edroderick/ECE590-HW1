@@ -1,0 +1,38 @@
+#!/bin/bash
+
+export LD_LIBRARY_PATH=/usr/lib:
+ROBOT_PATH_MAIN=$('pwd')
+export GAZEBO_PLUGIN_PATH=$ROBOT_PATH_MAIN/build:${GAZEBO_PLUGIN_PATH}
+export GAZEBO_PLUGIN_PATH=$ROBOT_PATH_MAIN:${GAZEBO_PLUGIN_PATH}
+rm ~/.gazebo/models/d_diff_drive_robot
+ln -s $ROBOT_PATH_MAIN ~/.gazebo/models/d_diff_drive_robot
+
+
+ROBOT_VIEW_VID_CHAN='robot-vid-chan'
+ROBOT_TIME_CHAN='robot-time'
+ROBOT_DIFF_DRIVE_CHAN='robot-diff-drive'
+ROBOT_VIEW_CLIENT_FILE='robot-view-client.py'
+ROBOT_DTHETA='dtheta-chan'
+ROBOT_REF_CHAN='controller-ref-chan'
+
+ROBOT_REMOTE_ADDRESS='0.0.0.0'
+
+MakeAch()
+{
+	ach -1 -C $ROBOT_VIEW_VID_CHAN -m 30 -n 3000000
+	ach -1 -C $ROBOT_DIFF_DRIVE_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_TIME_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_DTHETA -m 30 -n 30000
+	ach -1 -C $ROBOT_REF_CHAN -m 30 -n 30000
+        sudo chmod 777 /dev/shm/achshm-*
+}
+
+Kill()
+{
+        sudo rm -r /dev/shm/achshm*
+        sudo kill -9 $(pidof video_listener)
+        sudo kill -9 $(pidof gzserver)
+        sudo kill -9 $(pidof gzclient)
+        sudo kill -9 $(pidof gazebo)
+}
+
