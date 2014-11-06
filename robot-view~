@@ -42,7 +42,7 @@ ROBOT_VIEW_VID_CHAN='robot-vid-chan'
 ROBOT_TIME_CHAN='robot-time'
 ROBOT_DIFF_DRIVE_CHAN='robot-diff-drive'
 ROBOT_VIEW_CLIENT_FILE='robot-view-client.py'
-ROBOT_REF_CHAN='ike-coordinates-chan'
+ROBOT_REF_CHAN='controller-ref-chan'
 
 ROBOT_REMOTE_ADDRESS='0.0.0.0'
 
