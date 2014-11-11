@@ -39,11 +39,15 @@ from numpy.linalg import inv
 from ctypes import *
 import ike_include as ike
 
-threshold = .05
+threshold = .075
 l1 = .2145
 l2 = .17914
 l3 = .18159
-alpha = .1
+alpha = .01
+dT1 = .001		#might need to make negative to correspond with arm directions
+dT2 = .01
+dT3 = .01
+dE = np.array([[.01], [.01], [.01]])	# eX, eY, eZ
 
 # Open Hubo-Ach feed-forward and feed-back (reference and state) channels
 s = ach.Channel(ha.HUBO_CHAN_STATE_NAME)
@@ -61,91 +65,135 @@ state = ha.HUBO_STATE()
 # feed-back will now be refered to as "ref"
 ref = ha.HUBO_REF()
 
-ref.ref[ha.REB] = -.5
+#test code
+
+ref.ref[ha.RSR] = -math.pi/2*0	#raising shoulder
+ref.ref[ha.REB] = -math.pi/4	#curling elbow
+ref.ref[ha.RSP] = -math.pi/6*0
 r.put(ref)
-time.sleep(2)
+time.sleep(5)
+
+#end test code
+'''
+eX = .02
+eY = .02
+eZ = .02	
+
+dirX = 1
+dirY = 1
+dirZ = 1
+'''
+e = 1
 
 while True:
-	[statuss, framesizes] = k.get(coordinates, wait=True, last=True)
-	e = 1
+	[statuss, framesizes] = k.get(coordinates, wait=False, last=True)
 	while (e > threshold):
 
 		# Get the current feed-forward (state) 
 		[statuss, framesizes] = k.get(coordinates, wait=False, last=True)
-		#rotate position vector to match IKE equations reference
-		rot = np.array([[0,0,-1],[0, 1, 0],[1, 0, 0]])
-		X = np.array([[coordinates.x-l1], [coordinates.y], [coordinates.z]])
-		pos = rot.dot(X)
 
-		[statuss, framesizes] = s.get(state, wait=False, last =False)
-		#Get current joint angles and compute compatible rotation offsets for position and jacbian calcs
-		t3 = state.joint[ha.RSP].pos - math.pi/2
-		t4 = state.joint[ha.RSR].pos + math.pi/2
-		t5 = state.joint[ha.RSY].pos + math.pi/2
-		t6 = state.joint[ha.REB].pos
+		#rotate/translate position vector to match IKE equations reference
+		T = np.array([[0, 1, 0, 0],[0, 0, 1, 0],[1, 0, 0, .2145],[0, 0, 0, 1]])
+		#X = np.array([[coordinates.x], [coordinates.y], [coordinates.z], [1]])
+		X = np.array([[-.45],[-.2],[.2], [1]])
+		pos = T.dot(X)
+
+		[statuss, framesizes] = s.get(state, wait=False, last =True)
+		#Get current joint angles
+		t1 = state.joint[ha.RSP].pos 
+		t2 = state.joint[ha.RSR].pos
+		t3 = state.joint[ha.REB].pos 		
+
+		print 'angles' , t1, t2, t3
+
 		#compute current position
-		x = l2*math.cos(t3)*math.sin(t4) - l3*(math.sin(t6)*(math.sin(t3)*math.sin(t5) - math.cos(t3)*math.cos(t4)*math.cos(t5)) - math.cos(t3)*math.cos(t6)*math.sin(t4))
-		y = l3*(math.sin(t6)*(math.cos(t3)*math.sin(t5) + math.cos(t4)*math.cos(t5)*math.sin(t3)) + math.cos(t6)*math.sin(t3)*math.sin(t4)) + l2*math.sin(t3)*math.sin(t4)
-		z = l1 - l3*(math.cos(t4)*math.cos(t6) - math.cos(t5)*math.sin(t4)*math.sin(t6)) - l2*math.cos(t4)
+		x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
+		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
+		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)		
+
+		#find direction to move
+		
+		if (pos[0,0] - x) > 0:
+			dirX = 1
+		else:
+			dirX = -1
+		if (pos[1,0] - y) > 0:
+			dirY = 1
+		else:
+			dirY = -1
+		if (pos[2,0] - z) > 0:
+			dirZ = 1
+		else: 
+			dirZ = -1
+
+		#compute dE values from dTheta and desired position
+		
+		eX = (l3*(math.sin(t3+dT3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3)) - l2*math.cos(t1+dT1)*math.cos(t2+dT2)) - pos[0,0]
+		eY = (-l3*(math.sin(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3) + math.cos(t1+dT1)*math.sin(t3+dT3)) - l2*math.sin(t1+dT1)*math.cos(t2+dT2)) - pos[1,0]
+		eZ = (l3*math.sin(t2+dT2)*math.cos(t3+dT3) + l2*math.sin(t2+dT2)) - pos[2,0]
 		'''
-		#compute next position
-		x1 = l2*math.cos(t3+dTheta)*math.sin(t4+dTheta) - l3*(math.sin(t6+dTheta)*(math.sin(t3+dTheta)*math.sin(t5+dTheta) - math.cos(t3+dTheta)*math.cos(t4)*math.cos(t5+dTheta)) - math.cos(t3+dTheta)*math.cos(t6+dTheta)*math.sin(t4+dTheta))
-		y1 = l3*(math.sin(t6+dTheta)*(math.cos(t3+dTheta)*math.sin(t5+dTheta) + math.cos(t4+dTheta)*math.cos(t5+dTheta)*math.sin(t3+dTheta)) + math.cos(t6+dTheta)*math.sin(t3+dTheta)*math.sin(t4+dTheta)) + l2*math.sin(t3+dTheta)*math.sin(t4+dTheta)
-		z1 = l1 - l3*(math.cos(t4+dTheta)*math.cos(t6+dTheta) - math.cos(t5+dTheta)*math.sin(t4+dTheta)*math.sin(t6+dTheta)) - l2*math.cos(t4+dTheta)
+		eX = dirX*(l3*(math.sin(dT3)*math.sin(dT1) - math.cos(dT1)*math.cos(dT2)*math.cos(dT3)) - l2*math.cos(dT1)*math.cos(dT2))
+		eY = dirY*(-l3*(math.sin(dT1)*math.cos(dT2)*math.cos(dT3) + math.cos(dT1)*math.sin(dT3)) - l2*math.sin(dT1)*math.cos(dT2))
+		eZ = dirZ*(l3*math.sin(dT2)*math.cos(dT3) + l2*math.sin(dT2))
 		'''
-		dE = [pos[0]-x, pos[1]-y, pos[2]-z]
+		dE = np.array([[eX],[eY],[eZ]])	
+		
+		print 'target', pos[0,0], pos[1,0], pos[2,0]
+		print 'current pos' , x, y, z
+		print 'dE', eX, eY, eZ
 
 		#compute jacobian
-	
-		z0 = np.array([0,0,1])
-		z1 = np.array([math.sin(t3),-1*math.cos(t3),0])	
-		z2 = np.array([-1*math.cos(t3)*math.sin(t4),-1*math.sin(t3)*math.sin(t4),math.cos(t4)])	
-		z3 = np.array([math.cos(t5)*math.sin(t3)+math.cos(t3)*math.cos(t4)*math.sin(t5),math.cos(t4)*math.sin(t3)*math.sin(t5)-math.cos(t3)*math.cos(t5),math.sin(t4)*math.sin(t5)])
-		z4 = np.array([math.cos(t3)*math.cos(t6)*math.sin(t4) - math.sin(t6)*(math.sin(t3)*math.sin(t5) - math.cos(t3)*math.cos(t4)*math.cos(t5)),math.sin(t6)*(math.cos(t3)*math.sin(t5) + math.cos(t4)*math.cos(t5)*math.sin(t3)) + math.cos(t6)*math.sin(t3)*math.sin(t4),math.cos(t5)*math.sin(t4)*math.sin(t6) - math.cos(t4)*math.cos(t6)])
+		dxt1 = (l3*(math.sin(t3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1+dT1)*math.cos(t2)) - x
+		dyt1 = (-l3*(math.sin(t1+dT1)*math.cos(t2)*math.cos(t3) + math.cos(t1+dT1)*math.sin(t3)) - l2*math.sin(t1+dT1)*math.cos(t2)) - y
+		dzt1 = (l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)) - z
+			
+		dxt2 = (l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2+dT2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2+dT2)) - x
+		dyt2 = (-l3*(math.sin(t1)*math.cos(t2+dT2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2+dT2)) - y
+		dzt2 = (l3*math.sin(t2+dT2)*math.cos(t3) + l2*math.sin(t2+dT2)) - z
 
-		o3 = np.array([l2*math.cos(t3)*math.sin(t4),l2*math.sin(t3)*math.sin(t4),-l2*math.cos(t4)])
-		o4 = np.array([l2*math.cos(t3)*math.sin(t4),l2*math.sin(t3)*math.sin(t4),-l2*math.cos(t4)])
-		split1 = l2*math.cos(t3)*math.sin(t4)-l3*(math.sin(t6)*(math.sin(t3)*math.sin(t5)-math.cos(t3)*math.cos(t4)*math.cos(t5))-math.cos(t3)*math.cos(t6)*math.sin(t4))
-		split2 = l3*(math.sin(t6)*(math.cos(t3)*math.sin(t5)+math.cos(t4)*math.cos(t5)*math.sin(t3)) + math.cos(t6)*math.sin(t3)*math.sin(t4))+l2*math.sin(t3)*math.sin(t4)
-		split3 = -l3*(math.cos(t4)*math.cos(t6)-math.cos(t5)*math.sin(t4)*math.sin(t6))-l2*math.cos(t4)
-		o5 = np.array([split1,split2,split3])
+		dxt3 = (l3*(math.sin(t3+dT3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3+dT3)) - l2*math.cos(t1)*math.cos(t2)) - x
+		dyt3 = (-l3*(math.sin(t1)*math.cos(t2)*math.cos(t3+dT3) + math.cos(t1)*math.sin(t3+dT3)) - l2*math.sin(t1)*math.cos(t2)) - y
+		dzt3 = (l3*math.sin(t2)*math.cos(t3+dT3) + l2*math.sin(t2)) - z
 
-		A = np.cross(z0, o5)
-		B = np.cross(z1, o5)
-		C = np.cross(z2, o5)
-		D = np.cross(z3, (o5-o3))
-		E = np.cross(z4, (o5-o4))
-		
-		J = np.array([[A[0], B[0], C[0], D[0], E[0]], [A[1], B[1], C[1], D[1], E[1]], [A[2], B[2], C[2], D[2], E[2]]])
-		JT = J.T
-		G = np.dot(JT, J)
-		Jplus = np.dot(inv(G), JT)
-		#computing jacobian, partial derivatives found analytically from DH equations
-		
-
-
+		J = np.array([[dxt1/dT1, dyt1/dT1, dzt1/dT1],[dxt2/dT2, dyt2/dT2, dzt2/dT2],[dxt3/dT3, dyt3/dT3, dzt3/dT3]])
+		print J
 		#computing pseudo inverse
-		#J = np.array([[dxd1, dxd2, dxd3, dxd4],[dyd1, dyd2, dyd3, dyd4],[dzd1, dzd2, dzd3, dzd4]])
-		#Jstep = J.T.dot(J)
-		#print Jstep
-		#Jplus = inv(J.T.dot(J)).dot(J.T)
+		Jplus = (inv((J.T).dot(J))).dot(J.T)
 		#print Jplus
+
 		#computing dTheta
 		dTheta = Jplus.dot(dE)
-
+		#dTheta = J.T.dot(dE)
+		print dTheta*alpha
+		
 		#send to robot
+		print dirX, dirY, dirZ
 		ref.ref[ha.RSP] = state.joint[ha.RSP].pos + dTheta[0,0]*alpha
 		ref.ref[ha.RSR] = state.joint[ha.RSR].pos + dTheta[1,0]*alpha
-		ref.ref[ha.RSY] = state.joint[ha.RSY].pos + dTheta[2,0]*alpha
-		ref.ref[ha.REB] = state.joint[ha.REB].pos + dTheta[3,0]*alpha
+		ref.ref[ha.REB] = state.joint[ha.REB].pos + dTheta[2,0]*alpha
 		
-		print dTheta[0,0]*alpha
-		print dTheta[1,0]*alpha
-		print dTheta[2,0]*alpha
-		print dTheta[3,0]*alpha
 
+		
 		r.put(ref)
-		time.sleep(.5)
+		time.sleep(.1)
+
+		#update e
+		[statuss, framesizes] = s.get(state, wait=False, last =False)
+		#Get current joint angles after move //update for set angles?
+		t1 = state.joint[ha.RSP].pos 
+		t2 = state.joint[ha.RSR].pos
+		t3 = state.joint[ha.REB].pos 		
+
+		#compute current position
+		x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
+		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
+		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
+	
+
+		print 'new' , x, y, z
+		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)
+		print e	, threshold
+
 	
 # Close the connection to the channels
 r.close()
