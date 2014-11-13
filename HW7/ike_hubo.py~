@@ -97,16 +97,13 @@ while True:
 		t2 = state.joint[ha.RSR].pos
 		t3 = state.joint[ha.REB].pos 		
 
-		print 'angles' , t1, t2, t3
-
 		#compute current position
 		x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
 		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
 		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
 
 		#compute and update error from current position
-		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)
-		print e	, threshold		
+		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)		
 
 		#compute dE values from dTheta and desired position
 		eX = (l3*(math.sin(t3+dT3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3)) - l2*math.cos(t1+dT1)*math.cos(t2+dT2)) - pos[0,0]
@@ -114,10 +111,6 @@ while True:
 		eZ = (l3*math.sin(t2+dT2)*math.cos(t3+dT3) + l2*math.sin(t2+dT2)) - pos[2,0]
 
 		dE = np.array([[eX],[eY],[eZ]])	
-		
-		print 'target', pos[0,0], pos[1,0], pos[2,0]
-		print 'current pos' , x, y, z
-		print 'dE', eX, eY, eZ
 
 		#compute jacobian
 		dxt1 = (l3*(math.sin(t3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1+dT1)*math.cos(t2)) - x
@@ -140,7 +133,6 @@ while True:
 		#computing dTheta
 		dTheta = Jplus.dot(dE)
 
-		
 		newRSP = state.joint[ha.RSP].pos - dTheta[0,0]*alpha
 		newRSR = state.joint[ha.RSR].pos - dTheta[1,0]*alpha
 		newREB = state.joint[ha.REB].pos - dTheta[2,0]*alpha
@@ -177,6 +169,10 @@ while True:
 
 	#wait 3 seconds once arrived at position
 	print 'exited loop'
+	x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
+	y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
+	z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
+	print 'current position (local frame)' , x , y , z
 	time.sleep(3)
 
 # Close the connection to the channels
