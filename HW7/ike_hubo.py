@@ -39,15 +39,21 @@ from numpy.linalg import inv
 from ctypes import *
 import ike_include as ike
 
-threshold = .075
+threshold = .025
 l1 = .2145
 l2 = .17914
 l3 = .18159
-alpha = .01
-dT1 = .001		#might need to make negative to correspond with arm directions
-dT2 = .01
-dT3 = .01
-dE = np.array([[.01], [.01], [.01]])	# eX, eY, eZ
+alpha = .5
+dT1 = .001		
+dT2 = .001
+dT3 = .001
+
+maxREB = -2.25
+minREB = 0
+maxRSP = -math.pi
+minRSP = 0
+maxRSR = -2.3
+minRSR = 0
 
 # Open Hubo-Ach feed-forward and feed-back (reference and state) channels
 s = ach.Channel(ha.HUBO_CHAN_STATE_NAME)
@@ -65,37 +71,24 @@ state = ha.HUBO_STATE()
 # feed-back will now be refered to as "ref"
 ref = ha.HUBO_REF()
 
-#test code
-
-ref.ref[ha.RSR] = -math.pi/2*0	#raising shoulder
-ref.ref[ha.REB] = -math.pi/4	#curling elbow
-ref.ref[ha.RSP] = -math.pi/6*0
+#bend elbow to start to force jacobian to solve in righ direction
+ref.ref[ha.REB] = -math.pi/6		
 r.put(ref)
-time.sleep(5)
+time.sleep(3)
 
 #end test code
-'''
-eX = .02
-eY = .02
-eZ = .02	
-
-dirX = 1
-dirY = 1
-dirZ = 1
-'''
-e = 1
 
 while True:
-	[statuss, framesizes] = k.get(coordinates, wait=False, last=True)
-	while (e > threshold):
+	#get next set of coordinates. Readcoords.py will fill the ach channel with 3 iterations worth of targets and end. 3 second wait added at and of while loop
+	[statuss, framesizes] = k.get(coordinates, wait=False, last=False)
 
-		# Get the current feed-forward (state) 
-		[statuss, framesizes] = k.get(coordinates, wait=False, last=True)
+	e = 1	#initialize/reset error so while loop starts
+	while (e > threshold):
 
 		#rotate/translate position vector to match IKE equations reference
 		T = np.array([[0, 1, 0, 0],[0, 0, 1, 0],[1, 0, 0, .2145],[0, 0, 0, 1]])
-		#X = np.array([[coordinates.x], [coordinates.y], [coordinates.z], [1]])
-		X = np.array([[-.45],[-.2],[.2], [1]])
+		X = np.array([[coordinates.x], [coordinates.y], [coordinates.z], [1]])
+		#X = np.array([[-.45],[.2],[.2], [1]])
 		pos = T.dot(X)
 
 		[statuss, framesizes] = s.get(state, wait=False, last =True)
@@ -109,33 +102,17 @@ while True:
 		#compute current position
 		x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
 		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
-		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)		
+		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
 
-		#find direction to move
-		
-		if (pos[0,0] - x) > 0:
-			dirX = 1
-		else:
-			dirX = -1
-		if (pos[1,0] - y) > 0:
-			dirY = 1
-		else:
-			dirY = -1
-		if (pos[2,0] - z) > 0:
-			dirZ = 1
-		else: 
-			dirZ = -1
+		#compute and update error from current position
+		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)
+		print e	, threshold		
 
 		#compute dE values from dTheta and desired position
-		
 		eX = (l3*(math.sin(t3+dT3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3)) - l2*math.cos(t1+dT1)*math.cos(t2+dT2)) - pos[0,0]
 		eY = (-l3*(math.sin(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3) + math.cos(t1+dT1)*math.sin(t3+dT3)) - l2*math.sin(t1+dT1)*math.cos(t2+dT2)) - pos[1,0]
 		eZ = (l3*math.sin(t2+dT2)*math.cos(t3+dT3) + l2*math.sin(t2+dT2)) - pos[2,0]
-		'''
-		eX = dirX*(l3*(math.sin(dT3)*math.sin(dT1) - math.cos(dT1)*math.cos(dT2)*math.cos(dT3)) - l2*math.cos(dT1)*math.cos(dT2))
-		eY = dirY*(-l3*(math.sin(dT1)*math.cos(dT2)*math.cos(dT3) + math.cos(dT1)*math.sin(dT3)) - l2*math.sin(dT1)*math.cos(dT2))
-		eZ = dirZ*(l3*math.sin(dT2)*math.cos(dT3) + l2*math.sin(dT2))
-		'''
+
 		dE = np.array([[eX],[eY],[eZ]])	
 		
 		print 'target', pos[0,0], pos[1,0], pos[2,0]
@@ -155,47 +132,55 @@ while True:
 		dyt3 = (-l3*(math.sin(t1)*math.cos(t2)*math.cos(t3+dT3) + math.cos(t1)*math.sin(t3+dT3)) - l2*math.sin(t1)*math.cos(t2)) - y
 		dzt3 = (l3*math.sin(t2)*math.cos(t3+dT3) + l2*math.sin(t2)) - z
 
-		J = np.array([[dxt1/dT1, dyt1/dT1, dzt1/dT1],[dxt2/dT2, dyt2/dT2, dzt2/dT2],[dxt3/dT3, dyt3/dT3, dzt3/dT3]])
-		print J
+                J = np.array([[dxt1/dT1, dxt2/dT2, dxt3/dT3],[dyt1/dT1, dyt2/dT2, dyt3/dT3],[dzt1/dT1, dzt2/dT2, dzt3/dT3]])
+
 		#computing pseudo inverse
 		Jplus = (inv((J.T).dot(J))).dot(J.T)
-		#print Jplus
 
 		#computing dTheta
 		dTheta = Jplus.dot(dE)
-		#dTheta = J.T.dot(dE)
-		print dTheta*alpha
+
 		
+		newRSP = state.joint[ha.RSP].pos - dTheta[0,0]*alpha
+		newRSR = state.joint[ha.RSR].pos - dTheta[1,0]*alpha
+		newREB = state.joint[ha.REB].pos - dTheta[2,0]*alpha
+		
+		#check if min/max exceeded
+		'''
+		if (newRSP < maxRSP):
+			newRSP = maxRSP
+			print 'exceeded maxRSP'
+		elif (newRSP > minRSP):
+			newRSP = minRSP
+			print 'exceeded minRSP'
+
+		if (newRSR < maxRSR):
+			newRSR = maxRSR
+			print 'exceeded maxRSR'
+		elif (newRSR > maxRSR):
+			newRSR = minRSR
+			print 'exceeded minRSR'
+		
+		if (newREB < maxREB):
+			newREB = maxREB
+			print 'exceeded maxREB'
+		elif (newREB > minREB):
+			newREB = minREB
+			print 'exceeded minREB'
+		'''
 		#send to robot
-		print dirX, dirY, dirZ
-		ref.ref[ha.RSP] = state.joint[ha.RSP].pos + dTheta[0,0]*alpha
-		ref.ref[ha.RSR] = state.joint[ha.RSR].pos + dTheta[1,0]*alpha
-		ref.ref[ha.REB] = state.joint[ha.REB].pos + dTheta[2,0]*alpha
-		
-
-		
+		ref.ref[ha.RSP] = newRSP
+		ref.ref[ha.RSR] = newRSR
+		ref.ref[ha.REB] = newREB
 		r.put(ref)
-		time.sleep(.1)
+		time.sleep(.01)
 
-		#update e
-		[statuss, framesizes] = s.get(state, wait=False, last =False)
-		#Get current joint angles after move //update for set angles?
-		t1 = state.joint[ha.RSP].pos 
-		t2 = state.joint[ha.RSR].pos
-		t3 = state.joint[ha.REB].pos 		
+	#wait 3 seconds once arrived at position
+	print 'exited loop'
+	time.sleep(3)
 
-		#compute current position
-		x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
-		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
-		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
-	
-
-		print 'new' , x, y, z
-		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)
-		print e	, threshold
-
-	
 # Close the connection to the channels
 r.close()
 s.close()
 ike.close()
+
