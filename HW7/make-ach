@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/bin/bash
 # /* -*-  indent-tabs-mode:t; tab-width: 8; c-basic-offset: 8  -*- */
 # /*
-# Copyright (c) 2013, Daniel M. Lofaro
+# Copyright (c) 2014, Daniel M. Lofaro <dan (at) danLofaro (dot) com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -26,32 +26,46 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # */
+# Daniel M. Lofaro (dan@danlofaro.com)
 
+ROBOT_VIEW_VID_CHAN='robot-vid-chan'
+ROBOT_TIME_CHAN='robot-time'
+ROBOT_DIFF_DRIVE_CHAN='robot-diff-drive'
+ROBOT_VIEW_CLIENT_FILE='robot-view-client.py'
+ROBOT_DTHETA='dtheta-chan'
+ROBOT_REF_CHAN='controller-ref-chan'
+ROBOT_COORD_CHAN='ike-coordinates-chan'
 
+MakeAch()
+{
+	ach -1 -C $ROBOT_VIEW_VID_CHAN -m 30 -n 3000000
+	ach -1 -C $ROBOT_DIFF_DRIVE_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_TIME_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_DTHETA -m 30 -n 30000
+	ach -1 -C $ROBOT_REF_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_COORD_CHAN -m 30 -n 30000
+        sudo chmod 777 /dev/shm/achshm-*
+}
 
+KillAll()
+{
+        sudo rm -r /dev/shm/achshm*
+}
 
-import ach
-import sys
-import time
-import math
-from ctypes import *
-import ike_include as ike
+echo 'ran'
 
-# Open Hubo-Ach feed-forward and feed-back (reference and state) channels
-k = ach.Channel(ike.CONTROLLER_REF_NAME)
-coordinates = ike.CONTROLLER_REF()
+## Start all other parts ##
+case "$1" in
+	'make' )
+		MakeAch
+	;;
+	'kill' )
+		KillAll
+	;;
+	*)
+		exit 1
+	;;
+esac
 
-with open("hw7-ik.txt", "r") as coords:
-	for i in range(0,6):
-		for line in coords:
-			x = float(line.rstrip('\n').rsplit(" ", 3)[0])
-			y = float(line.rstrip('\n').rsplit(" ", 3)[1])
-			z = float(line.rstrip('\n').rsplit(" ", 3)[2])
-			coordinates.x = x
-			coordinates.y = y
-			coordinates.z = z
-			k.put(coordinates)		
-			print x, y, z
-			time.sleep(3)
-		coords.seek(0)
-	coords.close()
+exit 0
+# End:

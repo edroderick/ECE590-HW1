@@ -1,7 +1,7 @@
-#!/usr/bin/env python
+#!/bin/bash
 # /* -*-  indent-tabs-mode:t; tab-width: 8; c-basic-offset: 8  -*- */
 # /*
-# Copyright (c) 2014, Daniel M. Lofaro
+# Copyright (c) 2014, Daniel M. Lofaro <dan (at) danLofaro (dot) com>
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
 #     * Neither the name of the author nor the names of its contributors may
 #       be used to endorse or promote products derived from this software
 #       without specific prior written permission.
-#
+# 
 # THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 # ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,27 +26,46 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
 # ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 # */
+# Daniel M. Lofaro (dan@danlofaro.com)
 
-# from ctypes import *
-from ctypes import Structure,c_uint16,c_double,c_ubyte,c_uint32,c_int16
-# import ach
-# import sys
+ROBOT_VIEW_VID_CHAN='robot-vid-chan'
+ROBOT_TIME_CHAN='robot-time'
+ROBOT_DIFF_DRIVE_CHAN='robot-diff-drive'
+ROBOT_VIEW_CLIENT_FILE='robot-view-client.py'
+ROBOT_DTHETA='dtheta-chan'
+ROBOT_REF_CHAN='controller-ref-chan'
+ROBOT_COORD_CHAN='ike-coordinates-chan'
 
-DEF_1 = 0
-DEF_2 = 1
-DEF_3 = 2
+MakeAch()
+{
+	ach -1 -C $ROBOT_VIEW_VID_CHAN -m 30 -n 3000000
+	ach -1 -C $ROBOT_DIFF_DRIVE_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_TIME_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_DTHETA -m 30 -n 30000
+	ach -1 -C $ROBOT_REF_CHAN -m 30 -n 30000
+	ach -1 -C $ROBOT_COORD_CHAN -m 30 -n 30000
+        sudo chmod 777 /dev/shm/achshm-*
+}
 
+KillAll()
+{
+        sudo rm -r /dev/shm/achshm*
+}
 
-CONTROLLER_REF_NAME = 'controller-ref-chan'
+echo 'ran'
 
-class CONTROLLER_REF(Structure):
-    _pack_ = 1
-    _fields_ = [("x",    c_double),
-		("y",    c_double),
-                ("z",    c_double)]
-#class HUBO_REF(Structure):
-#    _pack_ = 1
-#    _fields_ = [("ref",    c_double*HUBO_JOINT_COUNT),
-#                ("mode",   c_int16*HUBO_JOINT_COUNT),
-#                ("comply", c_ubyte*HUBO_JOINT_COUNT)]
+## Start all other parts ##
+case "$1" in
+	'make' )
+		MakeAch
+	;;
+	'kill' )
+		KillAll
+	;;
+	*)
+		exit 1
+	;;
+esac
 
+exit 0
+# End:
