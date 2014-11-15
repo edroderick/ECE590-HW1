@@ -76,7 +76,20 @@ ref.ref[ha.REB] = -math.pi/6
 r.put(ref)
 time.sleep(3)
 
-#end test code
+def FKE_arm(side, t1, t2, t3):
+	if (side == "R"):
+		T1 = np.array([[math.cos(t1),0,-math.sin(t1),0],[math.sin(t1),0,math.cos(t1),0],[0,-1,0,0],[0,0,0,1]])
+		T2 = np.array([[math.cos(t2),0,math.sin(t2),-l2*math.cos(t2)],[math.sin(t2),0,-math.cos(t2),-l2*math.sin(t2)],[0,1,0,0],[0,0,0,1]])
+		T3 = np.array([[math.cos(t3),-math.sin(t3),0,-l3*math.cos(t3)],[math.sin(t3),math.cos(t3),0,-l3*math.sin(t3)],[0,0,1,0],[0,0,0,1]])
+		X = T1.dot(T2).dot(T3)
+		x = X[0,0]
+		y = X[0,1]
+		z = X[0,2]
+
+	if (side == "L"):
+		x = 1
+
+	return x, y, z
 
 while True:
 	#get next set of coordinates. Readcoords.py will fill the ach channel with 3 iterations worth of targets and end. 3 second wait added at and of while loop
@@ -86,10 +99,14 @@ while True:
 	while (e > threshold):
 
 		#rotate/translate position vector to match IKE equations reference
-		T = np.array([[0, 1, 0, 0],[0, 0, 1, 0],[1, 0, 0, .2145],[0, 0, 0, 1]])
-		X = np.array([[coordinates.x], [coordinates.y], [coordinates.z], [1]])
-		#X = np.array([[-.45],[.2],[.2], [1]])
-		pos = T.dot(X)
+		T_R = np.array([[0,1,0,0],[0,0,1,0],[1,0,0,-.2145],[0,0,0,1]])
+		T_L = np.array([[0,1,0,0],[0,0,1,0],[1,0,0,.2145],[0,0,0,1]])
+
+		X_R = np.array([[coordinates.x], [coordinates.y], [coordinates.z], [1]])
+		X_L = np.array([[-1*coordinates.x], [coordinates.y], [coordinates.z], [1]])
+
+		pos = T_R.dot(X_R)
+		#posL = T_L.dot(X_L)
 
 		[statuss, framesizes] = s.get(state, wait=False, last =True)
 		#Get current joint angles
@@ -102,6 +119,10 @@ while True:
 		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
 		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
 
+		print x, y, z
+		test1 = FKE_arm('R',t1,t2,t3)
+		print 'r',test1
+		
 		#compute and update error from current position
 		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)		
 
