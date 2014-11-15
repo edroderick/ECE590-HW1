@@ -43,17 +43,10 @@ threshold = .025
 l1 = .2145
 l2 = .17914
 l3 = .18159
-alpha = .5
+alpha = .25
 dT1 = .001		
 dT2 = .001
 dT3 = .001
-
-maxREB = -2.25
-minREB = 0
-maxRSP = -math.pi
-minRSP = 0
-maxRSR = -2.3
-minRSR = 0
 
 # Open Hubo-Ach feed-forward and feed-back (reference and state) channels
 s = ach.Channel(ha.HUBO_CHAN_STATE_NAME)
@@ -72,128 +65,130 @@ state = ha.HUBO_STATE()
 ref = ha.HUBO_REF()
 
 #bend elbow to start to force jacobian to solve in righ direction
-ref.ref[ha.REB] = -math.pi/6		
+ref.ref[ha.REB] = -math.pi/6	
+ref.ref[ha.LEB] = -math.pi/6
+	
 r.put(ref)
 time.sleep(3)
 
-def FKE_arm(side, t1, t2, t3):
-	if (side == "R"):
-		T1 = np.array([[math.cos(t1),0,-math.sin(t1),0],[math.sin(t1),0,math.cos(t1),0],[0,-1,0,0],[0,0,0,1]])
-		T2 = np.array([[math.cos(t2),0,math.sin(t2),-l2*math.cos(t2)],[math.sin(t2),0,-math.cos(t2),-l2*math.sin(t2)],[0,1,0,0],[0,0,0,1]])
-		T3 = np.array([[math.cos(t3),-math.sin(t3),0,-l3*math.cos(t3)],[math.sin(t3),math.cos(t3),0,-l3*math.sin(t3)],[0,0,1,0],[0,0,0,1]])
-		X = T1.dot(T2).dot(T3)
-		x = X[0,0]
-		y = X[0,1]
-		z = X[0,2]
-
-	if (side == "L"):
-		x = 1
-
+def FKE_arm(t1, t2, t3):
+	x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
+	y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
+	z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
 	return x, y, z
+
+def error(t1, t2, t3, pos):
+	x,y,z = FKE_arm(t1+dT1,t2+dT2,t3+dT3)
+	eX = x - pos[0,0]
+	eY = y - pos[1,0]
+	eZ = z - pos[2,0]
+
+	dE = np.array([[eX],[eY],[eZ]])	
+
+	return dE
+
+
+def Jacobian(t1, t2, t3, x, y, z):
+	dxt1 = (l3*(math.sin(t3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1+dT1)*math.cos(t2)) - x
+	dyt1 = (-l3*(math.sin(t1+dT1)*math.cos(t2)*math.cos(t3) + math.cos(t1+dT1)*math.sin(t3)) - l2*math.sin(t1+dT1)*math.cos(t2)) - y
+	dzt1 = (l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)) - z
+			
+	dxt2 = (l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2+dT2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2+dT2)) - x
+	dyt2 = (-l3*(math.sin(t1)*math.cos(t2+dT2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2+dT2)) - y
+	dzt2 = (l3*math.sin(t2+dT2)*math.cos(t3) + l2*math.sin(t2+dT2)) - z
+
+	dxt3 = (l3*(math.sin(t3+dT3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3+dT3)) - l2*math.cos(t1)*math.cos(t2)) - x
+	dyt3 = (-l3*(math.sin(t1)*math.cos(t2)*math.cos(t3+dT3) + math.cos(t1)*math.sin(t3+dT3)) - l2*math.sin(t1)*math.cos(t2)) - y
+	dzt3 = (l3*math.sin(t2)*math.cos(t3+dT3) + l2*math.sin(t2)) - z
+
+        J = np.array([[dxt1/dT1, dxt2/dT2, dxt3/dT3],[dyt1/dT1, dyt2/dT2, dyt3/dT3],[dzt1/dT1, dzt2/dT2, dzt3/dT3]])
+
+	return J
 
 while True:
 	#get next set of coordinates. Readcoords.py will fill the ach channel with 3 iterations worth of targets and end. 3 second wait added at and of while loop
 	[statuss, framesizes] = k.get(coordinates, wait=False, last=False)
 
-	e = 1	#initialize/reset error so while loop starts
-	while (e > threshold):
-
+	#initialize/reset error so while loop starts
+	e_R = 1	
+	e_L = 1
+	while (e_R > threshold) or (e_L > threshold):
 		#rotate/translate position vector to match IKE equations reference
-		T_R = np.array([[0,1,0,0],[0,0,1,0],[1,0,0,-.2145],[0,0,0,1]])
-		T_L = np.array([[0,1,0,0],[0,0,1,0],[1,0,0,.2145],[0,0,0,1]])
+		T_R = np.array([[0,1,0,0],[0,0,1,0],[1,0,0,.2145],[0,0,0,1]])
+		T_L = np.array([[0,1,0,0],[0,0,1,0],[1,0,0,-.2145],[0,0,0,1]])
 
 		X_R = np.array([[coordinates.x], [coordinates.y], [coordinates.z], [1]])
 		X_L = np.array([[-1*coordinates.x], [coordinates.y], [coordinates.z], [1]])
 
-		pos = T_R.dot(X_R)
-		#posL = T_L.dot(X_L)
+		posR = T_R.dot(X_R)
+		posL = T_L.dot(X_L)
 
 		[statuss, framesizes] = s.get(state, wait=False, last =True)
 		#Get current joint angles
-		t1 = state.joint[ha.RSP].pos 
-		t2 = state.joint[ha.RSR].pos
-		t3 = state.joint[ha.REB].pos 		
+		RSP = state.joint[ha.RSP].pos	#t1
+		RSR = state.joint[ha.RSR].pos	#t2
+		REB = state.joint[ha.REB].pos 	#t3
+		LSP = state.joint[ha.LSP].pos
+		LSR = state.joint[ha.LSR].pos
+		LEB = state.joint[ha.LEB].pos
 
-		#compute current position
-		x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
-		y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
-		z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
+		#remove when rest of code updated to new refs
+		t1 = RSP
+		t2 = RSR
+		t3 = REB
+	
+		#compute current end effector positions
+		x_R,y_R,z_R = FKE_arm(RSP,RSR,REB)
+		x_L,y_L,z_L = FKE_arm(LSP,LSR,LEB)
 
-		print x, y, z
-		test1 = FKE_arm('R',t1,t2,t3)
-		print 'r',test1
-		
 		#compute and update error from current position
-		e = math.sqrt((pos[0,0] - x)**2 + (pos[1,0] - y)**2 + (pos[2,0] - z)**2)		
+		e_R = math.sqrt((posR[0,0] - x_R)**2 + (posR[1,0] - y_R)**2 + (posR[2,0] - z_R)**2)
+		e_L = math.sqrt((posL[0,0] - x_L)**2 + (posL[1,0] - y_L)**2 + (posL[2,0] - z_L)**2)
+	
+		#check if one end effector has arrived while the other hasnt, stop that end effector while other continues to move
+		if (e_R <= threshold):
+			stopR = 0
+		else:
+			stopR = 1
+
+		if (e_L <= threshold):
+			stopL = 0
+		else:
+			stopL = 1
 
 		#compute dE values from dTheta and desired position
-		eX = (l3*(math.sin(t3+dT3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3)) - l2*math.cos(t1+dT1)*math.cos(t2+dT2)) - pos[0,0]
-		eY = (-l3*(math.sin(t1+dT1)*math.cos(t2+dT2)*math.cos(t3+dT3) + math.cos(t1+dT1)*math.sin(t3+dT3)) - l2*math.sin(t1+dT1)*math.cos(t2+dT2)) - pos[1,0]
-		eZ = (l3*math.sin(t2+dT2)*math.cos(t3+dT3) + l2*math.sin(t2+dT2)) - pos[2,0]
-
-		dE = np.array([[eX],[eY],[eZ]])	
+		dE_R = error(RSP, RSR, REB, posR)
+		dE_L = error(LSP, LSR, LEB, posL)
 
 		#compute jacobian
-		dxt1 = (l3*(math.sin(t3)*math.sin(t1+dT1) - math.cos(t1+dT1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1+dT1)*math.cos(t2)) - x
-		dyt1 = (-l3*(math.sin(t1+dT1)*math.cos(t2)*math.cos(t3) + math.cos(t1+dT1)*math.sin(t3)) - l2*math.sin(t1+dT1)*math.cos(t2)) - y
-		dzt1 = (l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)) - z
-			
-		dxt2 = (l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2+dT2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2+dT2)) - x
-		dyt2 = (-l3*(math.sin(t1)*math.cos(t2+dT2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2+dT2)) - y
-		dzt2 = (l3*math.sin(t2+dT2)*math.cos(t3) + l2*math.sin(t2+dT2)) - z
-
-		dxt3 = (l3*(math.sin(t3+dT3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3+dT3)) - l2*math.cos(t1)*math.cos(t2)) - x
-		dyt3 = (-l3*(math.sin(t1)*math.cos(t2)*math.cos(t3+dT3) + math.cos(t1)*math.sin(t3+dT3)) - l2*math.sin(t1)*math.cos(t2)) - y
-		dzt3 = (l3*math.sin(t2)*math.cos(t3+dT3) + l2*math.sin(t2)) - z
-
-                J = np.array([[dxt1/dT1, dxt2/dT2, dxt3/dT3],[dyt1/dT1, dyt2/dT2, dyt3/dT3],[dzt1/dT1, dzt2/dT2, dzt3/dT3]])
+		J_R = Jacobian(RSP, RSR, REB, x_R, y_R, z_R)
+		J_L = Jacobian(LSP, LSR, LEB, x_L, y_L, z_L)
 
 		#computing pseudo inverse
-		Jplus = (inv((J.T).dot(J))).dot(J.T)
+		JplusR = (inv((J_R.T).dot(J_R))).dot(J_R.T)
+		JplusL = (inv((J_L.T).dot(J_L))).dot(J_L.T)
 
 		#computing dTheta
-		dTheta = Jplus.dot(dE)
-
-		newRSP = state.joint[ha.RSP].pos - dTheta[0,0]*alpha
-		newRSR = state.joint[ha.RSR].pos - dTheta[1,0]*alpha
-		newREB = state.joint[ha.REB].pos - dTheta[2,0]*alpha
+		dThetaR = JplusR.dot(dE_R)
+		dThetaL = JplusL.dot(dE_L)
 		
-		#check if min/max exceeded
-		'''
-		if (newRSP < maxRSP):
-			newRSP = maxRSP
-			print 'exceeded maxRSP'
-		elif (newRSP > minRSP):
-			newRSP = minRSP
-			print 'exceeded minRSP'
-
-		if (newRSR < maxRSR):
-			newRSR = maxRSR
-			print 'exceeded maxRSR'
-		elif (newRSR > maxRSR):
-			newRSR = minRSR
-			print 'exceeded minRSR'
-		
-		if (newREB < maxREB):
-			newREB = maxREB
-			print 'exceeded maxREB'
-		elif (newREB > minREB):
-			newREB = minREB
-			print 'exceeded minREB'
-		'''
 		#send to robot
-		ref.ref[ha.RSP] = newRSP
-		ref.ref[ha.RSR] = newRSR
-		ref.ref[ha.REB] = newREB
+		ref.ref[ha.RSP] = state.joint[ha.RSP].pos - dThetaR[0,0]*alpha*stopR
+		ref.ref[ha.RSR] = state.joint[ha.RSR].pos - dThetaR[1,0]*alpha*stopR
+		ref.ref[ha.REB] = state.joint[ha.REB].pos - dThetaR[2,0]*alpha*stopR
+		ref.ref[ha.LSP] = state.joint[ha.LSP].pos - dThetaL[0,0]*alpha*stopL
+		ref.ref[ha.LSR] = state.joint[ha.LSR].pos - dThetaL[1,0]*alpha*stopL
+		ref.ref[ha.LEB] = state.joint[ha.LEB].pos - dThetaL[2,0]*alpha*stopL
 		r.put(ref)
 		time.sleep(.01)
 
 	#wait 3 seconds once arrived at position
-	print 'exited loop'
-	x = l3*(math.sin(t3)*math.sin(t1) - math.cos(t1)*math.cos(t2)*math.cos(t3)) - l2*math.cos(t1)*math.cos(t2)
-	y = -l3*(math.sin(t1)*math.cos(t2)*math.cos(t3) + math.cos(t1)*math.sin(t3)) - l2*math.sin(t1)*math.cos(t2)
-	z = l3*math.sin(t2)*math.cos(t3) + l2*math.sin(t2)
-	print 'current position (local frame)' , x , y , z
+	print 'Arrived at target position'
+	[statuss, framesizes] = s.get(state, wait=False, last =True)
+	x_R,y_R,z_R = FKE_arm(RSP,RSR,REB)
+	x_L,y_L,z_L = FKE_arm(LSP,LSR,LEB)
+	print 'Right arm current position (local frame)' , x_R , y_R , z_R
+	print 'Left arm current position (local frame)' , x_L , y_L , z_L
 	time.sleep(3)
 
 # Close the connection to the channels
